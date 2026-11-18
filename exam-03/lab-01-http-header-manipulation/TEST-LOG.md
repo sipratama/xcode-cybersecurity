@@ -436,6 +436,45 @@ Server-Timing adalah metadata diagnostik untuk menyampaikan metrik pemrosesan ya
 
 **Conclusion:** kombinasi header yang diuji tidak memberikan akses pada parent PHP endpoint. Belum ada authorization bypass yang terbukti. Status tetap **IN PROGRESS — NOT SOLVED**.
 
+## HTTP-20 — SHA-256 Response Body Comparison
+
+**Objective:** membandingkan response body request normal ke root dengan request yang menambahkan X-Original-URL menuju direktori admin.
+
+**Command:** dua command aktual dari pengguna, ditulis sebagai Bash; command kedua adalah perintah shell, bukan YAML. Maintainer tidak menjalankan ulang pengujian.
+
+Baseline:
+
+```bash
+curl -sS https://hackerlab.biz.id/ | sha256sum
+```
+
+Dengan X-Original-URL:
+
+```bash
+curl -sS \
+  -H "X-Original-URL: /target/secret-admin/" \
+  https://hackerlab.biz.id/ \
+  | sha256sum
+```
+
+**Command Breakdown:** `curl` melakukan GET ke root HTTPS pada kedua command. `-sS` menyembunyikan progress tetapi tetap menampilkan pesan error. `-H` menambahkan request header; nilainya meminta path `/target/secret-admin/` menurut konvensi routing yang sedang diuji, tanpa mengubah URL tujuan curl. Backslash menyambung baris Bash. Operator pipe `|` mengalirkan stdout command di kiri menjadi stdin command di kanan. `sha256sum` membaca byte dari stdin dan menghitung SHA-256. SHA-256 adalah fungsi hash kriptografis yang menghasilkan digest 256 bit, biasanya ditampilkan sebagai 64 karakter heksadesimal.
+
+**Actual Result:** **OBSERVED:** pengguna melaporkan hash yang sama untuk kedua command:
+
+```text
+f99f739d2378e0e915d095347f0b32d621e842d0c57cc538b17860c9236bc5f9
+```
+
+Ini nilai digest yang diberikan, bukan rekonstruksi seluruh output terminal. Status HTTP, header respons, panjang body, tanggal/jam, dan lingkungan eksekusi tidak diberikan pada HTTP-20. Sumber: SRC-06 / E-HDR-15 pada [register evidence](../evidence/README.md#1-register-sumber). HTTP-19 belum diberikan; nomor tersebut tidak diisi dengan hasil rekaan.
+
+**Technical Explanation:** perubahan byte pada data umumnya menghasilkan digest SHA-256 berbeda; digest identik memberikan bukti praktis yang kuat bahwa byte body yang masuk ke sha256sum sama, tanpa perlu menampilkan seluruh konten. Kemungkinan collision secara teoretis tetap ada. **OBSERVED:** tidak ada perubahan konten yang terdeteksi melalui perbandingan hash pada dua hasil ini.
+
+Command tidak memakai `-i` atau `-D -`, sehingga yang masuk ke pipe adalah body keluaran curl, bukan status dan response header. Karena itu digest ini bukan hash seluruh HTTP response, framing HTTP/2, atau traffic TLS. Hash body sama tidak menetapkan status, header, keputusan authorization, ataupun jalur pemrosesan internal yang sama. Pesan error curl melalui stderr tidak masuk pipe ini; kelengkapan transfer perlu dicatat pada pengujian berikutnya, tanpa mengasumsikan terjadi kegagalan pada hasil yang diberikan.
+
+**Important Findings:** **OBSERVED:** kedua response body mempunyai hash identik. **IMPORTANT:** X-Original-URL belum menunjukkan pengaruh routing yang terlihat pada konten. **NOT VERIFIED:** header diterima lalu diabaikan aplikasi, dihapus/ditimpa reverse proxy, atau diproses melalui jalur lain yang menghasilkan body sama. Hash identik tidak membuktikan server pasti mengabaikan header. **NOT VERIFIED:** terdapat authorization bypass melalui mekanisme lain. **NEXT STEP:** uji X-Rewrite-URL dan bandingkan dengan baseline; ini rencana, belum dijalankan dan belum memiliki hasil. Catat status, header, kelengkapan transfer, dan hash body agar perbandingan lebih lengkap.
+
+**Conclusion:** tidak ditemukan perubahan body yang terdeteksi oleh SHA-256 pada pasangan request ini. Belum ada authorization bypass yang terbukti. Status tetap **IN PROGRESS — NOT SOLVED**.
+
 ## ENV-01 — Kali Linux PATH Issue
 
 **Objective:** memisahkan error penemuan command lokal dari hasil pengujian HTTP dan memahami perbedaan dua lingkungan shell.
