@@ -475,6 +475,136 @@ Command tidak memakai `-i` atau `-D -`, sehingga yang masuk ke pipe adalah body 
 
 **Conclusion:** tidak ditemukan perubahan body yang terdeteksi oleh SHA-256 pada pasangan request ini. Belum ada authorization bypass yang terbukti. Status tetap **IN PROGRESS — NOT SOLVED**.
 
+## HTTP-21 — X-Rewrite-URL Header Testing
+
+**Objective:** mengetahui apakah X-Rewrite-URL yang dikendalikan client memengaruhi routing yang terlihat atau mengubah response body. Entri ini melanjutkan rencana historis pada HTTP-20; hasil sebelumnya tidak diubah.
+
+### Command 1 — Header Manipulation
+
+**Tujuan:** melihat status, metadata respons, dan konten saat root diminta dengan header routing menuju direktori admin.
+
+**Command:** command aktual pengguna, ditampilkan sebagai Bash karena merupakan perintah shell, bukan YAML. Maintainer tidak menjalankannya.
+
+```bash
+curl -i \
+  -H "X-Rewrite-URL: /target/secret-admin/" \
+  https://hackerlab.biz.id/
+```
+
+**Command Breakdown:** `curl` mengirim GET ke root HTTPS. `-i` menampilkan response header dan body. `-H` menambahkan header sebagai satu argumen yang diapit tanda kutip. X-Rewrite-URL membawa path yang ingin diuji sebagai metadata routing; URL tujuan curl tetap root, bukan direktori admin. Backslash di akhir baris menyambung command Bash.
+
+**Actual Result:** **OBSERVED:** ringkasan aktual yang diberikan pengguna:
+
+| Properti | Hasil |
+|---|---|
+| HTTP status | 200 OK |
+| Content-Type | `text/html` |
+| Server | `cloudflare` |
+| CF-Cache-Status | `DYNAMIC` |
+| Response body yang diidentifikasi pengguna | Pendaftaran VPS Ujian |
+
+Ini ringkasan hasil, bukan raw transcript atau HTML lengkap. Versi HTTP, timestamp, dan lingkungan eksekusi tidak diberikan untuk HTTP-21.
+
+**Technical Explanation:** respons 200 menunjukkan request root berhasil, tetapi konten yang dilaporkan tetap halaman pendaftaran VPS. Status tersebut tidak membuktikan akses admin. Nama header saja tidak menjamin proxy atau aplikasi menggunakan nilainya.
+
+**Important Findings:** **OBSERVED:** konten yang terlihat tetap halaman pendaftaran. **NOT VERIFIED:** komponen mana yang menerima, menghapus, mengabaikan, atau tidak menggunakan header. Server cloudflare dan DYNAMIC bukan bukti lokasi keputusan routing.
+
+**Lessons Learned:** bandingkan identitas konten dan resource yang diminta, bukan status 200 saja; keberhasilan mengakses halaman publik berbeda dari authorization pada resource admin.
+
+### Command 2 — SHA-256 Verification
+
+**Tujuan:** membandingkan byte body dengan digest baseline dan X-Original-URL yang dicatat pada HTTP-20.
+
+**Command:** command aktual pengguna, ditampilkan sebagai Bash.
+
+```bash
+curl -sS \
+  -H "X-Rewrite-URL: /target/secret-admin/" \
+  https://hackerlab.biz.id/ \
+  | sha256sum
+```
+
+**Command Breakdown:** `-sS` menyembunyikan progress namun tetap menampilkan error. `-H` mengirim X-Rewrite-URL dengan nilai yang sama seperti command pertama. URL tetap root HTTPS. Pipe `|` mengalirkan stdout curl ke stdin `sha256sum`, yang menghitung SHA-256 atas byte yang diterima. Tanpa `-i`, header dan status tidak ikut di-hash; backslash menyambung baris. Penjelasan SHA-256 ada pada [HTTP-20](#http-20--sha-256-response-body-comparison).
+
+**Actual Result:** **OBSERVED:** digest aktual yang diberikan:
+
+```text
+f99f739d2378e0e915d095347f0b32d621e842d0c57cc538b17860c9236bc5f9
+```
+
+Pengguna menyatakan hash identik dengan baseline dan X-Original-URL. Status/header dari command pertama tidak otomatis dianggap sebagai capture command kedua yang terpisah.
+
+**Technical Explanation:** hash identik merupakan bukti praktis yang sangat kuat bahwa byte body yang dibandingkan sama; kemungkinan collision secara teoretis tetap ada. Ini hash body, bukan seluruh respons. Jalur internal berbeda masih dapat menghasilkan konten sama, sehingga digest tidak menentukan apakah header diabaikan.
+
+**Important Findings:** **OBSERVED:** SHA-256 identik dengan baseline dan tidak ada perubahan konten yang terdeteksi. **IMPORTANT:** X-Rewrite-URL belum menunjukkan pengaruh routing yang terlihat pada hasil ini. **NOT VERIFIED:** adanya authorization bypass; tidak ada bypass yang terbukti.
+
+**Lessons Learned:** hash melengkapi inspeksi halaman dengan perbandingan byte, tetapi tidak menggantikan bukti routing, keputusan authorization, atau log proxy/origin.
+
+### Perbandingan baseline dan routing header
+
+Semua URL tujuan adalah `https://hackerlab.biz.id/`. Digest lengkap pada blok di atas berlaku untuk ketiga baris, berdasarkan laporan pengguna.
+
+| Request | Sumber | SHA-256 body | Batas informasi |
+|---|---|---|---|
+| Baseline GET tanpa header routing tambahan | HTTP-20 | Identik dengan digest di atas | Status/header pasangan hash HTTP-20 tidak diberikan |
+| `X-Original-URL: /target/secret-admin/` | HTTP-20 | Identik dengan digest di atas | Tidak menetapkan apakah header digunakan server |
+| `X-Rewrite-URL: /target/secret-admin/` | HTTP-21 | Identik dengan digest di atas | Command pertama terpisah melaporkan 200 dan halaman Pendaftaran VPS Ujian |
+
+**Conclusion:** tidak ditemukan perubahan routing yang terlihat atau konten akibat X-Rewrite-URL pada pengujian ini. Routing internal dan penanganan header tetap **NOT VERIFIED**. Sumber: SRC-07 / E-HDR-16 pada [register evidence](../evidence/README.md#1-register-sumber). Status tetap **IN PROGRESS — NOT SOLVED**.
+
+### Next Planned Investigation — Inspeksi HTML directory listing
+
+**NEXT STEP:** periksa HTML `/target/` untuk petunjuk. Command berikut adalah rencana pengguna, **belum dijalankan**, dan tidak memiliki hasil yang didokumentasikan:
+
+```bash
+curl -sS https://hackerlab.biz.id/target/ \
+  | grep -Ein 'secret|admin|header|hint|comment|<!--|ujian'
+```
+
+`curl -sS` mengambil body tanpa progress tetapi tetap menampilkan error. Pipe meneruskan HTML ke `grep`. `-E` menggunakan extended regular expression, `-i` mengabaikan kapitalisasi, dan `-n` menampilkan nomor baris. Karakter `|` di dalam pola yang dikutip berarti pilihan kata/pola, berbeda dari pipe shell di luar kutip. Pencarian ini hanya menyaring baris; tidak mem-parsing HTML secara menyeluruh. Jika petunjuk kelak ditemukan, petunjuk itu tetap memerlukan validasi tersendiri.
+
+## HTTP-22 — HTML Source Inspection
+
+**Objective:** mencari petunjuk challenge HTTP Header Manipulation dalam HTML directory listing `/target/`. Pengujian ini merealisasikan rencana inspeksi setelah HTTP-21; rencana terdahulu dipertahankan sebagai histori.
+
+**Command:** command aktual pengguna, ditampilkan sebagai Bash karena merupakan perintah shell, bukan Perl. Maintainer tidak menjalankan ulang request.
+
+```bash
+curl -sS https://hackerlab.biz.id/target/ \
+  | grep -Ein 'secret|admin|header|hint|comment|<!--|ujian'
+```
+
+**Command Breakdown:** `curl` mengambil body halaman `/target/` melalui GET. `-sS` menggabungkan mode senyap (`-s`, tanpa progress) dengan penampilan pesan error (`-S`). Backslash melanjutkan command ke baris berikutnya. Pipe shell `|` mengalirkan stdout curl ke stdin `grep`; pesan error pada stderr tidak ikut disaring oleh pipe ini. `grep` memilih baris yang cocok dengan pola. Opsi gabungan `-Ein` berarti `-E` menggunakan extended regular expression, `-i` mengabaikan kapitalisasi, dan `-n` menambahkan nomor baris. Tanda kutip tunggal menjaga pola sebagai satu argumen literal shell. Di dalam pola itu, `|` berarti pilihan pola, bukan pipe shell; `<!--` mencari pembuka komentar HTML.
+
+**Actual Result:** **OBSERVED:** pengguna melaporkan dua baris yang cocok:
+
+| Nomor baris | Elemen yang dilaporkan |
+|---|---|
+| 12 | Direktori `secret-admin/` |
+| 13 | File `ujian.php` |
+
+Tidak ditemukan petunjuk tambahan terkait header atau hint dalam hasil pencarian tersebut. Tabel ini merupakan ringkasan hasil, bukan rekonstruksi HTML/baris grep lengkap. Status HTTP, header, waktu eksekusi, dan lingkungan sumber tidak diberikan untuk HTTP-22. Sumber: SRC-08 / E-HDR-17 pada [register evidence](../evidence/README.md#1-register-sumber).
+
+**Technical Explanation:** nomor yang ditambahkan `grep -n` menunjukkan urutan baris pada input HTML yang diterima grep, bukan posisi elemen pada tampilan browser, nomor file server, atau nomor hasil pencarian. Contohnya, nomor 12 berarti kecocokan terjadi pada baris input ke-12. Temuan konsisten dengan listing yang sebelumnya dilaporkan pada HTTP-11. Directory listing dapat mengungkap nama dan struktur resource; keberadaan nama tidak membuktikan izin mengakses isinya.
+
+**Important Findings:** **OBSERVED:** listing memuat `secret-admin/` dan `ujian.php`; pencarian ini tidak menghasilkan petunjuk header tambahan. **IMPORTANT:** grep hanya menyaring pola tertentu pada satu body yang diterima, bukan mem-parsing seluruh situs atau seluruh HTML secara semantik. Petunjuk dapat menggunakan kata lain, encoding berbeda, resource terpisah, atau endpoint lain. **NOT VERIFIED:** apakah petunjuk tersedia pada halaman/endpoint lain. Tidak adanya kecocokan tambahan bukan bukti bahwa petunjuk tersebut tidak ada di tempat lain.
+
+**Lessons Learned:** gunakan hasil pencarian untuk mempersempit investigasi dan nyatakan batas cakupannya. Dua nama resource merupakan observasi; asumsi bahwa seluruh petunjuk telah ditemukan atau tidak tersedia memerlukan bukti tambahan.
+
+**Conclusion:** pencarian HTML menegaskan dua resource yang sudah dikenal tanpa petunjuk header tambahan dalam hasil yang dilaporkan. Belum ada authorization bypass terbukti; status tetap **IN PROGRESS — NOT SOLVED**.
+
+### Next Planned Test — HTTP-23
+
+**NEXT STEP:** analisis pengaruh X-Forwarded-Proto terhadap redirect HTTPS/HTTP pada path admin tanpa trailing slash. Command berikut merupakan rencana pengguna, **belum dijalankan** dan belum memiliki hasil:
+
+```bash
+curl -i \
+  -H "X-Forwarded-Proto: https" \
+  https://hackerlab.biz.id/target/secret-admin
+```
+
+`-i` menampilkan response header dan body; `-H` menambahkan X-Forwarded-Proto dengan nilai `https`. Header tersebut menyampaikan informasi scheme menurut konvensi proxy, tetapi nilai dari client tidak otomatis dipercaya server. Jika pengujian kelak dijalankan dalam scope, bandingkan status dan Location dengan HTTP-14. Command tidak memakai `-L`, sehingga tidak mengikuti redirect otomatis. **NOT VERIFIED:** header ini memengaruhi redirect atau dipakai oleh proxy/origin. Tidak ada hasil HTTP-23 yang diklaim.
+
 ## ENV-01 — Kali Linux PATH Issue
 
 **Objective:** memisahkan error penemuan command lokal dari hasil pengujian HTTP dan memahami perbedaan dua lingkungan shell.

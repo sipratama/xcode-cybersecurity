@@ -9,6 +9,8 @@
 | ID | Sumber | Tanggal hasil | Cakupan | Ketersediaan dan batasan |
 |---|---|---|---|---|
 | SRC-06 | Pesan pengguna HTTP-20 ? SHA-256 Response Body Comparison | Tanggal eksekusi tidak diberikan | Dua command aktual dan digest identik | Tidak diuji ulang; status/header, metadata lingkungan, dan body mentah belum diberikan |
+| SRC-07 | Pesan pengguna HTTP-21 - X-Rewrite-URL Header Testing | Tanggal eksekusi tidak diberikan | Dua command aktual, ringkasan respons, dan digest SHA-256 | Tidak diuji ulang; raw HTML, timestamp, versi HTTP, dan lingkungan belum diberikan; inspeksi listing masih rencana |
+| SRC-08 | Pesan pengguna HTTP-22 - HTML Source Inspection | Tanggal eksekusi tidak diberikan | Command aktual dan ringkasan dua baris kecocokan grep | Tidak diuji ulang; HTML lengkap dan metadata sesi tidak tersedia; HTTP-23 masih rencana tanpa hasil |
 | SRC-01 | Instruksi dan ringkasan pengujian pengguna, lampiran `Pasted text.txt` | 17 November 2026 | HTTP-01–HTTP-08, observasi browser, karakteristik respons | Ringkasan ditranskripsikan ke dokumen HTTP; raw request/response dan screenshot tidak dilampirkan |
 | SRC-02 | Informasi penyelenggara yang diteruskan pengguna dalam lampiran yang sama | Tidak dinyatakan | Inventaris target dan kebijakan Allow/Deny | **Not Verified:** belum ada bukti konektivitas atau eksploitasi |
 | SRC-03 | Lampiran pengguna berjudul `Task: Document XCODE Cybersecurity Exam 3 — HTTP Header Manipulation`, berkas `Pasted text.txt` | Hingga 17 November 2026 | Command dan hasil HTTP-01–HTTP-15 serta ENV-01 | Memperinci SRC-01 dengan cuplikan header/body, hasil ukuran body, dan konteks shell; raw transcript lengkap serta screenshot tidak disertakan |
@@ -22,6 +24,8 @@ Lampiran dan pesan percakapan berada di luar repository. Hasil ditranskripsikan 
 | Evidence ID | Observasi yang dilaporkan | Test ID | Sumber |
 |---|---|---|---|
 | E-HDR-15 | Root baseline dan X-Original-URL menghasilkan SHA-256 body identik: `f99f739d2378e0e915d095347f0b32d621e842d0c57cc538b17860c9236bc5f9` | HTTP-20 | SRC-06 |
+| E-HDR-16 | X-Rewrite-URL pada root: 200 OK, text/html, cloudflare, DYNAMIC, halaman Pendaftaran VPS Ujian; SHA-256 `f99f739d2378e0e915d095347f0b32d621e842d0c57cc538b17860c9236bc5f9`, identik dengan HTTP-20 | HTTP-21 | SRC-07 |
+| E-HDR-17 | Pencarian HTML `/target/`: baris 12 direktori `secret-admin/`, baris 13 file `ujian.php`; tidak ada petunjuk header tambahan dalam hasil pencarian yang dilaporkan | HTTP-22 | SRC-08 |
 | E-HDR-01 | Browser menampilkan 403 Forbidden | Observasi awal, di luar delapan test case | SRC-01 |
 | E-HDR-02 | Seluruh delapan test case menghasilkan 403 Forbidden | HTTP-01–HTTP-08 | SRC-01 |
 | E-HDR-03 | HTTP/2; `server: cloudflare`; `content-type: text/html; charset=UTF-8`; `cf-cache-status: DYNAMIC`; body `403 Forbidden`; `content-length: 13` pada GET yang diamati | Ringkasan respons; tidak dipetakan pengguna ke setiap test ID | SRC-01 |

@@ -79,6 +79,10 @@ Gunakan [learning journal](TEST-LOG.md) sebagai satu lokasi command dan penjelas
 
 [HTTP-20 ? SHA-256 Response Body Comparison](TEST-LOG.md#http-20--sha-256-response-body-comparison) melengkapi jurnal dengan dua command aktual dan batas interpretasi hash. HTTP-19 belum diberikan.
 
+[HTTP-21 - X-Rewrite-URL Header Testing](TEST-LOG.md#http-21--x-rewrite-url-header-testing) mencatat respons 200 halaman pendaftaran dan verifikasi hash; tabel perbandingan baseline serta kedua routing header tersedia pada entri tersebut.
+
+[HTTP-22 - HTML Source Inspection](TEST-LOG.md#http-22--html-source-inspection) mencatat hasil pencarian listing. [HTTP-23](TEST-LOG.md#next-planned-test--http-23) masih rencana, tanpa hasil.
+
 ## 7. Results
 
 Seluruh baris hasil berikut adalah **OBSERVED** dari [SRC-01, SRC-03, dan SRC-04](../evidence/README.md#1-register-sumber). Tabel merupakan ringkasan; jurnal menyimpan command dan detail tanpa mengarang raw transcript.
@@ -103,6 +107,8 @@ Seluruh baris hasil berikut adalah **OBSERVED** dari [SRC-01, SRC-03, dan SRC-04
 | HTTP-17 | Rantai redirect path admin tanpa slash | HTTPS HTTP/2 301 → HTTP HTTP/1.1 301 → HTTPS HTTP/2 403; dua redirect | E-HDR-13 |
 | HTTP-18 | User-Agent Mozilla/5.0 dan Accept HTML pada parent PHP | HTTP/2 403; body 13 bytes; Server-Timing tercatat; belum ada bypass | E-HDR-14 |
 | HTTP-20 | Root GET baseline vs X-Original-URL, hash body | SHA-256 identik; perubahan konten tidak terdeteksi; status/header tidak diberikan | E-HDR-15 |
+| HTTP-21 | Root dengan X-Rewrite-URL dan verifikasi SHA-256 | 200 OK, text/html, cloudflare, DYNAMIC; halaman Pendaftaran VPS Ujian; digest identik dengan baseline HTTP-20 | E-HDR-16 |
+| HTTP-22 | Pencarian pola pada HTML `/target/` | Baris 12: `secret-admin/`; baris 13: `ujian.php`; tidak ada petunjuk header tambahan dalam hasil pencarian | E-HDR-17 |
 | ENV-01 | PATH Kali dan verifikasi curl | Error awal `curl: command not found`; setelah koreksi: `/usr/bin/curl`, versi `8.20.0` | E-HDR-12 |
 
 ### Catatan historis dan batas karakteristik respons
@@ -159,6 +165,10 @@ Seluruh langkah berikut merupakan **NEXT STEP**, belum dijalankan oleh maintaine
 **NEXT STEP ? rencana, belum dijalankan:** uji X-Original-URL untuk menilai pengaruh client-controlled routing header terhadap request processing. Tentukan nilai header dan endpoint pembanding dalam scope, pertahankan baseline, dan rekam respons. Belum ada hasil atau bypass yang diklaim untuk rencana ini.
 
 **Pembaruan rencana setelah HTTP-20:** perbandingan body dengan X-Original-URL kini tersedia; rencana sebelumnya dipertahankan sebagai histori. **NEXT STEP:** uji X-Rewrite-URL terhadap baseline; belum dijalankan. Hash identik tidak menentukan apakah header diterima, diabaikan, atau dihapus. Belum ada bypass terbukti; status tetap **IN PROGRESS ? NOT SOLVED**.
+
+**Pembaruan rencana setelah HTTP-21:** pengujian X-Rewrite-URL kini telah dilaporkan pengguna; rencana terdahulu adalah histori. Tidak ditemukan perubahan routing yang terlihat atau konten, dan belum ada bypass terbukti. **NEXT STEP:** [inspeksi HTML directory listing](TEST-LOG.md#next-planned-investigation--inspeksi-html-directory-listing), belum dijalankan; tidak ada hasil yang diklaim.
+
+**Pembaruan setelah HTTP-22:** rencana inspeksi HTML setelah HTTP-21 telah menghasilkan dua kecocokan yang dicatat pada jurnal; rencana lama tetap merupakan histori. **NEXT STEP - HTTP-23:** uji X-Forwarded-Proto terhadap redirect pada path admin tanpa slash. Command tersedia pada jurnal, belum dijalankan, dan tidak memiliki hasil. Petunjuk pada endpoint lain serta pengaruh header terhadap redirect tetap **NOT VERIFIED**. Status tetap **IN PROGRESS ? NOT SOLVED**.
 
 ## 11. Mitigation
 
